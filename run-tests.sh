@@ -8,7 +8,7 @@
 # version 3, or (at your option) any later version.
 
 VALGRIND="valgrind"
-VALGRIND_ARGS="-q --error-exitcode=9"
+VALGRIND_ARGS="-q --error-exitcode=9 --leak-check=full"
 BZIP2="bzip2"
 BZIP2RECOVER="bzip2recover"
 TESTS_DIR="."
