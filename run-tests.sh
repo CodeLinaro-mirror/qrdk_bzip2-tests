@@ -1,7 +1,7 @@
 #!/bin/bash
 # A simple testframe runner for the bzip2 test suite.
 #
-# Copyright (C) 2019, Mark J. Wielaard  <mark@klomp.org>
+# Copyright (C) 2019, 2026 Mark J. Wielaard  <mark@klomp.org>
 #
 # This file is free software.  You can redistribute it and/or modify
 # it under the terms of the GNU General Public License (GPL); either
@@ -10,6 +10,7 @@
 VALGRIND="valgrind"
 VALGRIND_ARGS="-q --error-exitcode=9"
 BZIP2="bzip2"
+BZIP2RECOVER="bzip2recover"
 TESTS_DIR="."
 IGNORE_MD5=0
 
@@ -18,6 +19,7 @@ do
 case $i in
     --bzip2=*)
     BZIP2="${i#*=}"
+    BZIP2RECOVER="${BZIP2}recover"
     shift
     ;;
     --without-valgrind)
@@ -59,6 +61,10 @@ fi
 
 # Remove any left over tesfilecopies from previous runs first.
 find ${TESTS_DIR} -type f -name \*\.testfilecopy\.bz2 -exec rm \{\} \;
+
+# Remove any left over recovered files from previous runs (start with rec0)
+find ${TESTS_DIR} -type f -name rec0\[0-9\]\[0-9\]\*\.bz2 -exec rm \{\} \;
+
 
 # First test the good bz2 files.
 echo "Testing decompression and recompression..."
@@ -229,7 +235,73 @@ else
 fi
 echo
 
-results=$[${nogood}+${badresults}]
+# Test good bz2 files can be recovered
+echo "Testing recovering bzip2 files..."
+echo
+
+badrecover=()
+
+norecover=0
+while IFS= read -r -d '' bzfile; do
+  # Recover (good files, should work)
+  # bzip2recover should have a -q option
+  ${VALGRIND} ${VALGRIND_ARGS} ${BZIP2RECOVER} ${bzfile} > /dev/null 2>&1 \
+    && { echo "PASS: ${bzfile} Recover"; } \
+    || { echo "FAIL: ${bzfile} Recover";
+         badrecover=("${badrecover[@]}" $"${bzfile} bad recover result")
+         norecover=$[${norecover}+1]; continue; }
+  dn=$(dirname ${bzfile})
+  bn=$(basename ${bzfile})
+  rm -f "${dn}"/rec0*"${bn}"
+done < <(find ${TESTS_DIR} -type f -name \*\.bz2 -print0 \
+	 | grep -z -v empty.bz2) # bzip2recover doesn't handle valid empty.bz2
+echo
+
+# Try to recover bad inputs.
+# Might not work, but should not crash (or give valgrind errors)
+echo "Testing recovering of bad input data..."
+echo
+
+badrec=0
+badrecs=()
+while IFS= read -r -d '' badfile; do
+
+  ${VALGRIND} ${VALGRIND_ARGS} ${BZIP2RECOVER} ${badfile} > /dev/null 2>&1
+  ret=$?
+
+  # Assume we can recover (exit zero) or not (exit one).
+  # A crash or valgrind issue will be reported with something else.
+  if [[ ${ret} != 0 ]] && [[ ${ret} != 1 ]]; then
+    echo "FAIL: Bad recover for ${badfile}"
+    badrec=$[${badrec}+1]
+    badrecs=("${badrecs[@]}" $"${badfile} bad recover")
+    continue
+  else
+    echo "PASS: No crash recovering ${badfile}"
+  fi
+  # note .bad doesn't end in bz2 so bzip2recover adds .bz2
+  dn=$(dirname ${badfile})
+  bn=$(basename ${badfile})
+  rm -f "${dn}"/rec0*"${bn}".bz2
+done < <(find ${TESTS_DIR} -type f -name \*\.bz2.bad -print0)
+
+badrecover=$[${norecover}+${badrec}]
+echo
+
+if [[ ${badrecover} -eq 0 ]]; then
+  echo "bzip2recover recovered what it could."
+else
+  if [[ ${norecover} -ne 0 ]]; then
+    echo "!!! ${norecover} good bz2 files couldn't be recovered."
+  fi
+  if [[ ${badrec} -ne 0 ]]; then
+    echo "!!! ${badrec} bad bz2 files caused baddness during recovering."
+  fi
+fi
+
+echo
+
+results=$[${nogood}+${badresults}+${badrecover}]
 if [[ ${results} -eq 0 ]]; then
   echo "All tests passed"
   exit 0

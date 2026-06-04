@@ -25,6 +25,8 @@ They can then be checked again with:
   md5sum --check file.md5 < file
 
 Note do NOT name a file ending in .testfilecopy or .testfilecopy.bz2.
+Also do NOT name a file starting with rec0[0-9]+ and ending in .bz2,
+as created by the bzip2recover utility.
 Those will automatically be cleaned by up the testframework.
 
 There is a simple bash script to run the tests:
@@ -45,6 +47,10 @@ For each .bz2.bad file decompression is tried twice also. In
 default mode and small mode. The bzip2 binary is expected to
 return either 1 or 2 as exit status. Any other exit code is
 interpreted as failure.
+
+The bzip2recover utility is run on all .bz2 files to check the
+blocks can be recovered. For all .bz2.bad files bzip2recover
+should try to recover any blocks and should exit gracefully.
 
 If you just want to check a directory (and any subdirectories)
 full of (known good) .bz2 files you can invoke the script as:
