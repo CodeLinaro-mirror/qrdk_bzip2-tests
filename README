@@ -31,8 +31,8 @@ Those will automatically be cleaned by up the testframework.
 
 There is a simple bash script to run the tests:
 
-run-tests [--bzip2=bzip2-command] [--without-valgrind]
-          [--ignore-md5] [--tests-dir=/path/to/bzip2-tests-dir]
+./run-tests.sh [--bzip2=bzip2-command] [--without-valgrind]
+               [--ignore-md5] [--tests-dir=/path/to/bzip2-tests-dir]
 
 It will by default test with the command 'bzip2', running under
 valgrind (if installed on the system), checking md5 sum files
@@ -55,5 +55,5 @@ should try to recover any blocks and should exit gracefully.
 If you just want to check a directory (and any subdirectories)
 full of (known good) .bz2 files you can invoke the script as:
 
-  ./run-test --ignore-md5 --tests-dir=/dir/full/off/bz2/files
+  ./run-test.sh --ignore-md5 --tests-dir=/dir/full/off/bz2/files
 
